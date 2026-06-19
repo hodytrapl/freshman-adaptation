@@ -1,0 +1,6 @@
+--Poweshell
+пути файла:
+PS C:\Users\user\Desktop\HODY\go\classwork\projects\freshman-adaptation> gci -Recurse 
+| Select-Object -ExpandProperty FullName | ForEach-Object {
+>>     $_ -replace '.*?(freshman-adaptation)', '$1'
+>> }

@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"database/sql"
@@ -13,7 +13,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
-func main() {
+func Migrate() {
 	err := godotenv.Load()
 	if err != nil {
 		log.Println("Нет .env файла, используем системные переменные")
@@ -67,7 +67,7 @@ func main() {
 	}
 
 	// Путь к папке с миграциями (относительно корня проекта)
-	migrationsPath := "file://migrations"
+	migrationsPath := "file://database/migrations"
 
 	m, err := migrate.NewWithDatabaseInstance(migrationsPath, dbname, driver)
 	if err != nil {

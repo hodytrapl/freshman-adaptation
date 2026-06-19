@@ -1,4 +1,7 @@
+
 # Freshman Adaptation
+> [!WARNING]
+> deprecated ФАЙЛ, могжет содержать ошибки
 
 Система адаптации первокурсников.
 
