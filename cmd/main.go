@@ -1,10 +1,9 @@
 package main
 
-
 import (
-    "freshman-adaptation/database/sql/cli"
+	cli "freshman-adaptation/database/sql"
 )
 
-func main(){
+func main() {
 	cli.Migrate()
 }
