@@ -1,0 +1,35 @@
+http
+### Создать группу
+POST http://localhost:8080/groups
+Content-Type: application/json
+
+{
+  "name": "Группа 101"
+}
+
+### Список групп
+GET http://localhost:8080/groups
+
+### Создать студента (автоматически создаются задачи)
+POST http://localhost:8080/students
+Content-Type: application/json
+
+{
+  "first_name": "Иван",
+  "last_name": "Петров",
+  "group_id": 1
+}
+
+### Список студентов по группе
+GET http://localhost:8080/students?group_id=1
+
+### Задачи студента
+GET http://localhost:8080/students/1/tasks
+
+### Обновить статус задачи
+PATCH http://localhost:8080/tasks/1
+Content-Type: application/json
+
+{
+  "status": "in_progress"
+}
