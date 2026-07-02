@@ -1,183 +1,119 @@
-# Freshman Adaptation
+# Адаптация студентов — REST API (MVP)
 
-Система адаптации первокурсников.
+## Запуск под Windows 10
 
-## Требования
+### 1. Установите Go (версия 1.21+)
+Скачайте с [golang.org](https://golang.org/dl/).
 
-Перед запуском должны быть установлены:
+### 2. Установите PostgreSQL
+Скачайте и установите [PostgreSQL](https://www.postgresql.org/download/windows/).  
+Запомните пароль суперпользователя (например, `pass`).
 
-* Go 1.24+
-* PostgreSQL 15+
-* Git
-
-## Клонирование проекта
-
-```bash
-git clone <repository-url>
-cd Group1
-```
-
-## Настройка PostgreSQL
-
-Создать пользователя PostgreSQL или использовать существующего.
-
-Пример:
-
-```sql
-CREATE USER postgres WITH PASSWORD 'pass';
-ALTER USER postgres CREATEDB;
-```
-
-## Переменные окружения
-
-### Windows PowerShell
-
-```powershell
-$env:DB_USER="postgres"
-$env:DB_PASS="pass"
-$env:DB_NAME="freshman_adaptation"
-```
-
-### Linux/macOS
-
-```bash
-export DB_USER=postgres
-export DB_PASS=pass
-export DB_NAME=freshman_adaptation
-```
-
-## Установка зависимостей
+### 3. Установите зависимости
+В корне проекта выполните:
 
 ```bash
 go mod tidy
 ```
 
-## Сборка приложения миграций
+### 4. Настройте переменные окружения
+Задайте переменные в командной строке (Windows):
 
-Из корня проекта:
-
-```bash
-go build -o migrate-app ./cmd/migrate
+```cmd
+set DB_USER=postgres
+set DB_PASS=your_password
+set DB_NAME=freshman_adaptation
+set HTTP_PORT=8080
 ```
 
-Windows:
+Если используете PowerShell:
 
 ```powershell
-go build -o migrate-app.exe ./cmd/migrate
+$env:DB_USER="postgres"
+$env:DB_PASS="your_password"
+$env:DB_NAME="freshman_adaptation"
+$env:HTTP_PORT="8080"
 ```
 
-## Запуск миграций
+Если переменные не заданы, используются значения по умолчанию из `internal/config/config.go`:
+- `DB_USER=postgres`
+- `DB_PASS=pass`
+- `DB_NAME=freshman_adaptation`
+- `HTTP_PORT=8080`
 
-Linux/macOS:
+### 5. Примените миграции
+При первом запуске программа автоматически создаст базу данных и накатит миграции.  
+Просто запустите сервер.
+
+### 6. Запустите сервер
 
 ```bash
-./migrate-app
+go run cmd/app/main.go
 ```
 
-Windows:
+Сервер будет доступен по адресу http://localhost:8080.
+
+Проверка жизнеспособности:
+
+```bash
+curl http://localhost:8080/health
+```
+
+### 7. Тестирование
+Используйте файл `docs/requests.http` (REST Client в VS Code / Cursor) или cURL из `docs/API.md` для проверки всех эндпоинтов.
+
+### 8. Тестирование транзакции (откат)
+Чтобы убедиться, что транзакция работает:
+
+1. Временно измените функцию `createDefaultTasks` в `internal/repository/repository.go` — замените колонку `title` на несуществующую (например, `titl`).
+2. Перезапустите сервер.
+3. Выполните `POST /students` с существующим `group_id`.
+4. Убедитесь, что ответ — `500`, а студент **не** появился в `GET /students?group_id=1`.
+5. Верните код в исходное состояние и перезапустите сервер.
+
+Подробные cURL-примеры и сценарии ошибок — в `docs/requests.http` и `docs/API.md`.
+
+## Структура проекта
+
+```
+cmd/app/main.go              — точка входа (миграции + HTTP-сервер)
+database/migrations/         — SQL-миграции
+database/sql/                — подключение к БД и migrate
+internal/api/                — HTTP-хендлеры и DTO запросов
+internal/apperrors/          — sentinel-ошибки и AppError
+internal/config/             — конфигурация из env
+internal/middleware/         — JSON-ответы, логирование, recover
+internal/models/             — модели данных
+internal/repository/         — работа с PostgreSQL (в т.ч. транзакции)
+docs/API.md                  — документация для фронтенда
+docs/requests.http           — сценарии запросов
+```
+
+## Обработка ошибок
+
+Все ошибки API возвращаются в едином формате:
+
+```json
+{
+  "error": "сообщение"
+}
+```
+
+Sentinel-ошибки (`ErrNotFound`, `ErrValidation`, `ErrInternal`) преобразуются в HTTP-статусы `404`, `400`, `500` соответственно.
+
+## Тесты
+
+```bash
+go test ./... -v
+```
+
+- **Unit-тесты** (apperrors, middleware, API с sqlmock) — работают без PostgreSQL.
+- **Интеграционные тесты** (`TestAPIFlowIntegration`, `internal/repository/*`) — требуют запущенный PostgreSQL.
+
+Переменные для интеграционных тестов (необязательно):
 
 ```powershell
-.\migrate-app.exe
-```
-
-После успешного запуска будет:
-
-```text
-База данных freshman_adaptation создана
-Миграции успешно применены
-```
-
-или
-
-```text
-База данных freshman_adaptation уже существует
-Миграции успешно применены
-```
-
-## Структура базы данных
-
-### groups
-
-| Поле | Тип                   |
-| ---- | --------------------- |
-| id   | BIGSERIAL PRIMARY KEY |
-| name | TEXT NOT NULL         |
-
-### students
-
-| Поле       | Тип                          |
-| ---------- | ---------------------------- |
-| id         | BIGSERIAL PRIMARY KEY        |
-| first_name | TEXT NOT NULL                |
-| last_name  | TEXT NOT NULL                |
-| group_id   | BIGINT REFERENCES groups(id) |
-| created_at | TIMESTAMPTZ                  |
-
-### tasks
-
-| Поле       | Тип                            |
-| ---------- | ------------------------------ |
-| id         | BIGSERIAL PRIMARY KEY          |
-| student_id | BIGINT REFERENCES students(id) |
-| title      | TEXT NOT NULL                  |
-| status     | todo | in_progress | done      |
-| created_at | TIMESTAMPTZ                    |
-
-## Создание новой миграции
-
-Создать файлы:
-
-```text
-migrations/
-├── 000002_name.up.sql
-└── 000002_name.down.sql
-```
-
-Пример:
-
-```sql
--- 000002_add_email.up.sql
-ALTER TABLE students ADD COLUMN email TEXT;
-```
-
-```sql
--- 000002_add_email.down.sql
-ALTER TABLE students DROP COLUMN email;
-```
-
-После создания миграции снова выполнить:
-
-```powershell
-.\migrate-app.exe
-```
-
-или
-
-```bash
-./migrate-app
-```
-
-Новая миграция будет применена автоматически.
-
-## Проверка таблиц
-
-Подключиться к PostgreSQL:
-
-```bash
-psql -U postgres -d freshman_adaptation
-```
-
-Список таблиц:
-
-```sql
-\dt
-```
-
-Ожидаемый результат:
-
-```text
-groups
-students
-tasks
-schema_migrations
+$env:DB_USER="postgres"
+$env:DB_PASS="your_password"
+$env:TEST_DB_NAME="freshman_adaptation_test"
 ```

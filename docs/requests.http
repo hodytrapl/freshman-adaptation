@@ -1,0 +1,98 @@
+@baseUrl = http://localhost:8080
+
+### Health check
+GET {{baseUrl}}/health
+
+### Создать группу
+POST {{baseUrl}}/groups
+Content-Type: application/json
+
+{
+  "name": "Группа 101"
+}
+
+### Список групп
+GET {{baseUrl}}/groups
+
+### Создать студента (автоматически создаются 2 задачи в транзакции)
+POST {{baseUrl}}/students
+Content-Type: application/json
+
+{
+  "first_name": "Иван",
+  "last_name": "Петров",
+  "group_id": 1
+}
+
+### Список студентов по группе
+GET {{baseUrl}}/students?group_id=1
+
+### Список студентов без group_id (ожидается 400)
+GET {{baseUrl}}/students
+
+### Задачи студента
+GET {{baseUrl}}/students/1/tasks
+
+### Задачи несуществующего студента (ожидается 404)
+GET {{baseUrl}}/students/99999/tasks
+
+### Обновить статус задачи (todo -> in_progress)
+PATCH {{baseUrl}}/tasks/1
+Content-Type: application/json
+
+{
+  "status": "in_progress"
+}
+
+### Обновить статус задачи (in_progress -> done)
+PATCH {{baseUrl}}/tasks/1
+Content-Type: application/json
+
+{
+  "status": "done"
+}
+
+### Недопустимый статус (ожидается 400)
+PATCH {{baseUrl}}/tasks/1
+Content-Type: application/json
+
+{
+  "status": "invalid_status"
+}
+
+### Несуществующая задача (ожидается 404)
+PATCH {{baseUrl}}/tasks/99999
+Content-Type: application/json
+
+{
+  "status": "done"
+}
+
+### Создание студента с несуществующей группой (ожидается 404)
+POST {{baseUrl}}/students
+Content-Type: application/json
+
+{
+  "first_name": "Мария",
+  "last_name": "Сидорова",
+  "group_id": 99999
+}
+
+###
+### Демонстрация отката транзакции (ручной сценарий)
+###
+### 1. В internal/repository/repository.go временно замените в createDefaultTasks
+###    колонку title на несуществующую, например: INSERT INTO tasks (student_id, titl, status)
+### 2. Перезапустите сервер: go run cmd/app/main.go
+### 3. Выполните запрос ниже — ожидается 500, студент НЕ должен появиться в GET /students?group_id=1
+###
+# POST {{baseUrl}}/students
+# Content-Type: application/json
+#
+# {
+#   "first_name": "Тест",
+#   "last_name": "Откат",
+#   "group_id": 1
+# }
+###
+### 4. Верните код createDefaultTasks в исходное состояние и перезапустите сервер
